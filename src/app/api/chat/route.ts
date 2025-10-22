@@ -37,33 +37,27 @@ export async function POST(req: Request) {
       messages,
       system: `You are an AI expert specializing in analyzing AI Agent frameworks and Model Context Protocol (MCP) servers. 
       
-      IMPORTANT: Always provide COMPLETE analysis in a single response. Never indicate that analysis is "in progress", "pending", or "will be completed later". 
+      CRITICAL REQUIREMENTS:
+      1. MUST analyze ALL frameworks mentioned in the user's request - do not skip any
+      2. MUST provide COMPLETE analysis in a single response 
+      3. NEVER indicate analysis is "in progress", "pending", or "will be completed later"
+      4. If a framework list contains numbered items, analyze EVERY number in sequence
       
-      When analyzing frameworks and tools, provide detailed, accurate information about:
-      1. GitHub statistics (stars, forks, recent activity)
-      2. Community sentiment and adoption trends
-      3. Recent developments and version releases
-      4. Market positioning and competitive analysis
-      5. Technical strengths and use cases
+      Format requirements:
+      - Use section headers: ## MAIN FRAMEWORKS ANALYSIS and ## EMERGING FRAMEWORKS DISCOVERED
+      - For each framework use this EXACT format:
       
-      For emerging frameworks section, always provide actual discovered frameworks with real analysis. If you cannot find specific emerging frameworks, provide analysis of newer or less well-known frameworks instead of placeholder text.
-      
-      Format your responses with clear sections:
-      - ## MAIN FRAMEWORKS ANALYSIS
-      - ## EMERGING FRAMEWORKS DISCOVERED
-      
-      Use consistent formatting for each framework:
       **Framework Name:** [Name]
-      **Category:** [AI Framework or MCP Server]
+      **Category:** [AI Framework or MCP Server]  
       **Description:** [Brief description]
       **GitHub Stars:** [Number] (estimate if needed)
       **Recent Growth:** [Percentage] over the past 6 months (estimate if needed)
       **Community Sentiment:** [Positive/Very Positive/Neutral]
       **Recent Activity:** [Number] commits in the last month
+      **Key Strengths:** [Brief list]
+      **Use Cases:** [Primary applications]
       
-      Include specific numbers when possible, but if you don't have exact current data, provide reasonable estimates based on your training data and clearly indicate they are estimates.
-      
-      Focus on providing actionable insights that would be valuable for developers choosing between these frameworks.`,
+      Provide reasonable estimates for all metrics. Focus on being comprehensive and complete.`,
     });
 
     return result.toTextStreamResponse();

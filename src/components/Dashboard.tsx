@@ -5,31 +5,35 @@ import { Send, Bot, TrendingUp, Star, GitFork, Activity, ChevronDown, ChevronUp 
 import MetricsGrid from './MetricsGrid';
 import LoadingSpinner from './LoadingSpinner';
 
-const DEFAULT_PROMPT = `Analyze the current landscape of AI Agent frameworks and Model Context Protocol (MCP) servers. Provide detailed metrics and insights on the following frameworks:
+const DEFAULT_PROMPT = `Analyze the current landscape of AI Agent frameworks and Model Context Protocol (MCP) servers. This analysis will be enhanced with real-time GitHub data automatically. Provide detailed insights on the following frameworks:
 
-**AI Agent Frameworks:**
-- LangGraph
-- AutoGPT
-- CrewAI
-- Microsoft Semantic Kernel
-- Cloudflare Agents
-- LlamaIndex
-- AgentGPT
-- Vercel AI SDK
+**AI Agent Frameworks (ANALYZE ALL 8):**
+1. LangGraph
+2. AutoGPT  
+3. CrewAI
+4. Microsoft Semantic Kernel
+5. Cloudflare Agents
+6. LlamaIndex
+7. AgentGPT
+8. Vercel AI SDK
 
-**MCP Server Implementations:**
-- FastMCP
-- MCP Server SDK
-- Claude MCP Servers
-- OpenAI MCP Toolkit
-- Local MCP Servers
+**MCP Server Implementations (ANALYZE ALL 5):**
+1. FastMCP
+2. MCP Server SDK
+3. Claude MCP Servers
+4. OpenAI MCP Toolkit
+5. Local MCP Servers
+
+CRITICAL: You MUST analyze ALL 13 frameworks listed above. Do not skip any.
 
 For each framework/tool, provide:
-1. GitHub stars and recent growth trends
-2. Community sentiment and adoption metrics
-3. Recent activity indicators (commits, releases, issues)
-4. Popularity ranking within its category
-5. Key strengths and use cases
+1. Community sentiment and adoption metrics  
+2. Key strengths and use cases
+3. Target audience and typical use cases
+4. Documentation quality and developer experience
+5. Integration capabilities and ecosystem
+
+**NOTE:** GitHub metrics (stars, forks, commits, releases) will be automatically fetched from the real GitHub API and displayed alongside your analysis.
 
 **Additional Discovery Section:**
 Please also identify and analyze emerging or popular frameworks not listed above that are gaining traction in the industry. Look for:
@@ -49,16 +53,13 @@ Please also identify and analyze emerging or popular frameworks not listed above
 **CRITICAL: DO NOT just say "pending analysis" - you MUST actually discover and analyze specific emerging frameworks. Research and identify at least 3-5 real emerging frameworks that fit the criteria above.**
 
 **IMPORTANT: For each newly discovered framework/server, provide the COMPLETE analysis including:**
-1. **GitHub stars and recent growth trends** (specific numbers and percentage growth)
-2. **Community sentiment and adoption metrics** (developer feedback, usage statistics)
-3. **Recent activity indicators** (commits, releases, issues with dates and numbers)
-4. **Popularity ranking within its category** (compared to similar tools)
-5. **Key strengths and use cases** (detailed technical capabilities)
-6. **Project description** (what it does, target audience, main features)
-7. **Why it wasn't in our original list** (recency, niche focus, etc.)
-8. **What makes it noteworthy or different** (unique features, approach)
-9. **Potential impact on the ecosystem** (market disruption potential)
-10. **Adoption trajectory and growth potential** (future outlook)
+1. **Community sentiment and adoption metrics** (developer feedback, usage statistics)
+2. **Key strengths and use cases** (detailed technical capabilities)
+3. **Project description** (what it does, target audience, main features)
+4. **Why it wasn't in our original list** (recency, niche focus, etc.)
+5. **What makes it noteworthy or different** (unique features, approach)
+6. **Potential impact on the ecosystem** (market disruption potential)
+7. **Adoption trajectory and growth potential** (future outlook)
 
 **MUST INCLUDE REAL EXAMPLES:** Some frameworks you should consider researching include:
 - Langfuse (LLM observability)
@@ -81,12 +82,11 @@ For each framework in both sections, use this EXACT format (this is critical for
 **Framework Name:** [Name]
 **Category:** [AI Framework | MCP Server]
 **Description:** [Brief description of what it does]
-**GitHub Stars:** [Number] (estimate)
-**Recent Growth:** [Percentage] over the past 6 months (estimate)
 **Community Sentiment:** [Positive/Very Positive/Neutral]
-**Recent Activity:** [Number] commits in the last month
 **Key Strengths:** [Brief list]
 **Use Cases:** [Primary applications]
+**Target Audience:** [Who uses this framework]
+**Documentation Quality:** [Excellent/Good/Fair/Poor]
 
 NEVER include "pending analysis" or "will be completed later" messages. Always provide complete analysis for all sections.`;
 
@@ -104,6 +104,7 @@ export default function Dashboard() {
     setHasResponse(false);
 
     try {
+      // Step 1: Get AI analysis
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -148,6 +149,70 @@ export default function Dashboard() {
         fullResponse = await res.text();
         setResponse(fullResponse);
       }
+
+      // Step 2: Extract framework names and fetch real GitHub data
+      console.log('Fetching real GitHub data for frameworks...');
+      
+      // Extract framework names from the response and known frameworks
+      const mainFrameworks = [
+        'LangGraph', 'AutoGPT', 'CrewAI', 'Microsoft Semantic Kernel', 
+        'Cloudflare Agents', 'LlamaIndex', 'AgentGPT', 'Vercel AI SDK',
+        'FastMCP', 'MCP Server SDK', 'Claude MCP Servers', 'OpenAI MCP Toolkit', 'Local MCP Servers'
+      ];
+      
+      // Also try to extract emerging frameworks from the AI response
+      const emergingFrameworkMatches = fullResponse.match(/\*\*Framework Name:\*\*\s*([^\n\r]+)/g) || [];
+      const emergingFrameworks = emergingFrameworkMatches
+        .map(match => match.replace(/\*\*Framework Name:\*\*\s*/, '').trim())
+        .filter(name => !mainFrameworks.some(main => main.toLowerCase() === name.toLowerCase()));
+
+      const allFrameworks = [...mainFrameworks, ...emergingFrameworks];
+      
+      // Fetch GitHub data for all frameworks
+      const githubRes = await fetch('/api/github', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          frameworks: allFrameworks
+        }),
+      });
+
+      if (githubRes.ok) {
+        const githubData = await githubRes.json();
+        console.log('Successfully fetched GitHub data for', githubData.data?.length || 0, 'frameworks');
+        
+        // Append GitHub data to the response in a format that MetricsGrid can parse
+        const githubDataSection = '\n\n## REAL-TIME GITHUB DATA\n\n' + 
+          (githubData.data || []).map((item: { 
+            name: string; 
+            github_stars?: number; 
+            github_forks?: number; 
+            recent_commits?: number; 
+            recent_releases?: number; 
+            primary_language?: string; 
+            last_updated?: string; 
+            repo_url?: string; 
+          }) => 
+            `**${item.name}:**\n` +
+            `- GitHub Stars: ${item.github_stars?.toLocaleString() || 'N/A'}\n` +
+            `- Forks: ${item.github_forks?.toLocaleString() || 'N/A'}\n` +
+            `- Recent Commits (4 weeks): ${item.recent_commits || 'N/A'}\n` +
+            `- Recent Releases (30 days): ${item.recent_releases || 'N/A'}\n` +
+            `- Language: ${item.primary_language || 'N/A'}\n` +
+            `- Last Updated: ${item.last_updated ? new Date(item.last_updated).toLocaleDateString() : 'N/A'}\n` +
+            `- Repository: ${item.repo_url || 'N/A'}\n`
+          ).join('\n');
+          
+        // Also store the raw GitHub data as JSON for direct parsing
+        const rawGitHubData = '\n\n## RAW_GITHUB_DATA\n' + JSON.stringify(githubData.data, null, 2) + '\n';
+          
+        setResponse(fullResponse + githubDataSection + rawGitHubData);
+      } else {
+        console.warn('Failed to fetch GitHub data, continuing with AI analysis only');
+      }
+      
       setHasResponse(true);
     } catch (error) {
       console.error('Error:', error);
