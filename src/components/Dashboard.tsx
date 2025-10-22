@@ -37,11 +37,13 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [hasResponse, setHasResponse] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setResponse('');
+    setHasResponse(false);
 
     try {
       const res = await fetch('/api/chat', {
@@ -94,10 +96,12 @@ export default function Dashboard() {
         }
       }
 
+      setHasResponse(true);
     } catch (error) {
       console.error('Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setResponse(`Error: ${errorMessage}\n\nPlease check:\n1. Your OpenAI API key is set in Vercel environment variables\n2. Your API key has sufficient credits\n3. Check the Vercel function logs for more details`);
+      setHasResponse(true);
     } finally {
       setIsLoading(false);
     }
@@ -175,7 +179,7 @@ export default function Dashboard() {
         )}
 
         {/* Results Section */}
-        {!isLoading && response.trim() && (
+        {hasResponse && !isLoading && (
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
               <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -185,13 +189,13 @@ export default function Dashboard() {
             </div>
             
             {/* AI Response */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            {/* <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
               <div className="prose dark:prose-invert max-w-none">
                 <div className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">
                   {response}
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Metrics Dashboard */}
             <MetricsGrid responseContent={response} />
@@ -199,7 +203,7 @@ export default function Dashboard() {
         )}
 
         {/* Welcome State */}
-        {!isLoading && !response.trim() && (
+        {!hasResponse && !isLoading && (
           <div className="max-w-4xl mx-auto text-center py-12">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
