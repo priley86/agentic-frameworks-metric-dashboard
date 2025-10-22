@@ -419,7 +419,7 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Active Projects</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {allFrameworks.filter((item: FrameworkData) => item.recentCommits > 500).length}
+                {allFrameworks.filter((item: FrameworkData) => item.recentCommits > 10).length}
               </p>
             </div>
             <Users className="w-8 h-8 text-purple-500" />
