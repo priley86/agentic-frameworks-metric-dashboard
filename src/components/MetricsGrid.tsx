@@ -534,11 +534,31 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
       
       if (gitHubMatch) {
         console.log(`Merged GitHub data for ${framework.name}: ${gitHubMatch.github_stars} stars`);
+        
+        // Calculate estimated growth based on repo age and current stars
+        let estimatedGrowth = 'N/A';
+        if (gitHubMatch.created_at) {
+          const createdDate = new Date(gitHubMatch.created_at);
+          const now = new Date();
+          const ageInMonths = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          
+          if (ageInMonths > 0) {
+            // Estimate monthly growth rate based on total stars and age
+            const monthlyGrowthRate = Math.pow(gitHubMatch.github_stars / 100, 1 / ageInMonths) - 1;
+            const annualGrowthRate = (Math.pow(1 + monthlyGrowthRate, 12) - 1) * 100;
+            
+            // Cap at reasonable values and format
+            const cappedGrowth = Math.min(Math.max(annualGrowthRate, 0), 1000);
+            estimatedGrowth = `+${Math.round(cappedGrowth)}%/yr`;
+          }
+        }
+        
         return {
           ...framework,
           stars: gitHubMatch.github_stars,
           forks: gitHubMatch.github_forks,
           recentCommits: gitHubMatch.recent_commits,
+          growth: estimatedGrowth,
           description: gitHubMatch.description || framework.description
         };
       }
