@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Bot, TrendingUp, Star, GitFork, Activity } from 'lucide-react';
+import { Send, Bot, TrendingUp, Star, GitFork, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import MetricsGrid from './MetricsGrid';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -46,6 +46,8 @@ Please also identify and analyze emerging or popular frameworks not listed above
 - Domain-specific MCP servers
 - Enterprise or cloud-native MCP solutions
 
+**CRITICAL: DO NOT just say "pending analysis" - you MUST actually discover and analyze specific emerging frameworks. Research and identify at least 3-5 real emerging frameworks that fit the criteria above.**
+
 **IMPORTANT: For each newly discovered framework/server, provide the COMPLETE analysis including:**
 1. **GitHub stars and recent growth trends** (specific numbers and percentage growth)
 2. **Community sentiment and adoption metrics** (developer feedback, usage statistics)
@@ -58,13 +60,44 @@ Please also identify and analyze emerging or popular frameworks not listed above
 9. **Potential impact on the ecosystem** (market disruption potential)
 10. **Adoption trajectory and growth potential** (future outlook)
 
-Format the response as structured data that can be easily parsed for dashboard visualization.`;
+**MUST INCLUDE REAL EXAMPLES:** Some frameworks you should consider researching include:
+- Langfuse (LLM observability)
+- Phidata (AI assistant framework)
+- Composio (tool integration platform)
+- ControlFlow (workflow orchestration)
+- Swarm (multi-agent orchestration)
+- Autogen Studio (visual agent builder)
+- TaskWeaver (code-first agent framework)
+- Any other emerging frameworks you discover
+
+Format the response as structured data that can be easily parsed for dashboard visualization.
+
+**RESPONSE FORMAT:**
+Please structure your response with clear sections:
+
+## MAIN FRAMEWORKS ANALYSIS
+[Provide analysis for each listed framework above]
+
+## EMERGING FRAMEWORKS DISCOVERED
+[Provide analysis for newly discovered frameworks with same detail level]
+
+For each framework in both sections, use this exact format:
+**Framework Name:** [Name]
+**Category:** [AI Framework | MCP Server]
+**Description:** [Brief description of what it does]
+**GitHub Stars:** [Number]
+**Recent Growth:** [Percentage]
+**Community Sentiment:** [Positive/Very Positive/Neutral]
+**Recent Activity:** [Number] commits in last month
+**Key Strengths:** [Brief list]
+**Use Cases:** [Primary applications]`;
 
 export default function Dashboard() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasResponse, setHasResponse] = useState(false);
+  const [isResponseExpanded, setIsResponseExpanded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,35 +127,9 @@ export default function Dashboard() {
         throw new Error(`API request failed: ${res.status} - ${errorData}`);
       }
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('0:')) {
-              try {
-                const jsonStr = line.substring(2);
-                const data = JSON.parse(jsonStr);
-                if (data.content) {
-                  fullResponse += data.content;
-                  setResponse(fullResponse);
-                }
-              } catch {
-                // Ignore JSON parsing errors for streaming data
-              }
-            }
-          }
-        }
-      }
-
+      // Try using the response as a text stream directly
+      const text = await res.text();
+      setResponse(text);
       setHasResponse(true);
     } catch (error) {
       console.error('Error:', error);
@@ -216,13 +223,35 @@ export default function Dashboard() {
             </div>
             
             {/* AI Response */}
-            {/* <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
-              <div className="prose dark:prose-invert max-w-none">
-                <div className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">
-                  {response}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-8">
+              <button 
+                onClick={() => setIsResponseExpanded(!isResponseExpanded)}
+                className="w-full p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Raw AI Analysis Response
+                  </h3>
+                  {isResponseExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  )}
                 </div>
-              </div>
-            </div> */}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {isResponseExpanded ? 'Click to collapse' : 'Click to view the complete AI analysis'}
+                </p>
+              </button>
+              {isResponseExpanded && (
+                <div className="px-6 pb-6 border-t border-gray-200 dark:border-gray-700">
+                  <div className="prose dark:prose-invert max-w-none mt-4">
+                    <div className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 text-sm">
+                      {response}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Metrics Dashboard */}
             <MetricsGrid responseContent={response} />
