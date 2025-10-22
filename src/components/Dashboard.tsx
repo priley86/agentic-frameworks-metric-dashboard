@@ -37,13 +37,11 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [hasResponse, setHasResponse] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setResponse('');
-    setHasResponse(false);
 
     try {
       const res = await fetch('/api/chat', {
@@ -94,11 +92,9 @@ export default function Dashboard() {
         }
       }
 
-      setHasResponse(true);
     } catch (error) {
       console.error('Error:', error);
       setResponse('Error: Failed to get analysis. Please check your OpenAI API key and try again.');
-      setHasResponse(true);
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +172,7 @@ export default function Dashboard() {
         )}
 
         {/* Results Section */}
-        {hasResponse && !isLoading && response && (
+        {!isLoading && response.trim() && (
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
               <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -200,7 +196,7 @@ export default function Dashboard() {
         )}
 
         {/* Welcome State */}
-        {!hasResponse && !isLoading && (
+        {!isLoading && !response.trim() && (
           <div className="max-w-4xl mx-auto text-center py-12">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
