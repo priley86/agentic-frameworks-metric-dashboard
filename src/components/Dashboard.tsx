@@ -31,6 +31,33 @@ For each framework/tool, provide:
 4. Popularity ranking within its category
 5. Key strengths and use cases
 
+**Additional Discovery Section:**
+Please also identify and analyze emerging or popular frameworks not listed above that are gaining traction in the industry. Look for:
+
+**Emerging AI Agent Frameworks:**
+- New or rapidly growing agent frameworks released in the last 12-18 months
+- Frameworks with significant GitHub activity or community buzz
+- Enterprise or startup-backed agent solutions
+- Specialized agent frameworks for specific domains (finance, healthcare, etc.)
+
+**Emerging MCP Server Implementations:**
+- New MCP server SDKs or implementations
+- Alternative MCP protocol implementations
+- Domain-specific MCP servers
+- Enterprise or cloud-native MCP solutions
+
+**IMPORTANT: For each newly discovered framework/server, provide the COMPLETE analysis including:**
+1. **GitHub stars and recent growth trends** (specific numbers and percentage growth)
+2. **Community sentiment and adoption metrics** (developer feedback, usage statistics)
+3. **Recent activity indicators** (commits, releases, issues with dates and numbers)
+4. **Popularity ranking within its category** (compared to similar tools)
+5. **Key strengths and use cases** (detailed technical capabilities)
+6. **Project description** (what it does, target audience, main features)
+7. **Why it wasn't in our original list** (recency, niche focus, etc.)
+8. **What makes it noteworthy or different** (unique features, approach)
+9. **Potential impact on the ecosystem** (market disruption potential)
+10. **Adoption trajectory and growth potential** (future outlook)
+
 Format the response as structured data that can be easily parsed for dashboard visualization.`;
 
 export default function Dashboard() {
@@ -121,7 +148,7 @@ export default function Dashboard() {
               <Bot className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-              AI Agent Metrics Dashboard
+              AI Agent Framework Metrics Dashboard
             </h1>
           </div>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
