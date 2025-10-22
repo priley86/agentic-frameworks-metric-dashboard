@@ -8,14 +8,14 @@ import LoadingSpinner from './LoadingSpinner';
 const DEFAULT_PROMPT = `Analyze the current landscape of AI Agent frameworks and Model Context Protocol (MCP) servers. Provide detailed metrics and insights on the following frameworks:
 
 **AI Agent Frameworks:**
-- LangChain
+- LangGraph
 - AutoGPT
 - CrewAI
 - Microsoft Semantic Kernel
-- Haystack
+- Cloudflare Agents
 - LlamaIndex
 - AgentGPT
-- MetaGPT
+- Vercel AI SDK
 
 **MCP Server Implementations:**
 - FastMCP
@@ -232,7 +232,7 @@ export default function Dashboard() {
 
         {/* Results Section */}
         {hasResponse && !isLoading && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-8xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
               <TrendingUp className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">

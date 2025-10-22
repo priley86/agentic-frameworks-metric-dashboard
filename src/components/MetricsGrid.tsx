@@ -340,13 +340,13 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
   // Create chart data from parsed real data - ensure we have valid data
   const chartData = mainFrameworks.length > 0 ? mainFrameworks.map(item => ({
     name: item.name.length > 15 ? item.name.substring(0, 12) + '...' : item.name,
-    stars: Math.max(0.1, item.stars / 1000), // Ensure minimum value for visibility
+    stars: item.stars, // Keep actual star count for better display
     popularity: item.popularity
   })) : [];
   
   const emergingChartData = emergingFrameworks.length > 0 ? emergingFrameworks.map(item => ({
     name: item.name.length > 15 ? item.name.substring(0, 12) + '...' : item.name,
-    stars: Math.max(0.1, item.stars / 1000), // Ensure minimum value for visibility
+    stars: item.stars, // Keep actual star count for better display
     popularity: item.popularity
   })) : [];
   
@@ -440,8 +440,8 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
+                  <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(1)}k`} />
+                  <Tooltip formatter={(value) => [`${(Number(value) / 1000).toFixed(1)}k`, 'Stars']} />
                   <Bar dataKey="stars" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -480,8 +480,8 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
               <BarChart data={emergingChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
+                <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(1)}k`} />
+                <Tooltip formatter={(value) => [`${(Number(value) / 1000).toFixed(1)}k`, 'Stars']} />
                 <Bar dataKey="stars" fill="#8B5CF6" />
               </BarChart>
             </ResponsiveContainer>
