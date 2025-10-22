@@ -60,7 +60,9 @@ export default function Dashboard() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await res.text();
+        console.error('API Error:', res.status, errorData);
+        throw new Error(`API request failed: ${res.status} - ${errorData}`);
       }
 
       const reader = res.body?.getReader();
@@ -94,7 +96,8 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error('Error:', error);
-      setResponse('Error: Failed to get analysis. Please check your OpenAI API key and try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setResponse(`Error: ${errorMessage}\n\nPlease check:\n1. Your OpenAI API key is set in Vercel environment variables\n2. Your API key has sufficient credits\n3. Check the Vercel function logs for more details`);
     } finally {
       setIsLoading(false);
     }
