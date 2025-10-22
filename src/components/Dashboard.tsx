@@ -70,27 +70,25 @@ Please also identify and analyze emerging or popular frameworks not listed above
 - TaskWeaver (code-first agent framework)
 - Any other emerging frameworks you discover
 
-Format the response as structured data that can be easily parsed for dashboard visualization.
-
-**RESPONSE FORMAT:**
-Please structure your response with clear sections:
+**CRITICAL RESPONSE FORMAT REQUIREMENT:**
+Please structure your response with these EXACT section headers:
 
 ## MAIN FRAMEWORKS ANALYSIS
-[Provide analysis for each listed framework above]
 
 ## EMERGING FRAMEWORKS DISCOVERED
-[Provide analysis for newly discovered frameworks with same detail level]
 
-For each framework in both sections, use this exact format:
+For each framework in both sections, use this EXACT format (this is critical for parsing):
 **Framework Name:** [Name]
 **Category:** [AI Framework | MCP Server]
 **Description:** [Brief description of what it does]
-**GitHub Stars:** [Number]
-**Recent Growth:** [Percentage]
+**GitHub Stars:** [Number] (estimate)
+**Recent Growth:** [Percentage] over the past 6 months (estimate)
 **Community Sentiment:** [Positive/Very Positive/Neutral]
-**Recent Activity:** [Number] commits in last month
+**Recent Activity:** [Number] commits in the last month
 **Key Strengths:** [Brief list]
-**Use Cases:** [Primary applications]`;
+**Use Cases:** [Primary applications]
+
+NEVER include "pending analysis" or "will be completed later" messages. Always provide complete analysis for all sections.`;
 
 export default function Dashboard() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
@@ -127,9 +125,29 @@ export default function Dashboard() {
         throw new Error(`API request failed: ${res.status} - ${errorData}`);
       }
 
-      // Try using the response as a text stream directly
-      const text = await res.text();
-      setResponse(text);
+      // Handle streaming response
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            fullResponse += chunk;
+            setResponse(fullResponse); // Update UI in real-time
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } else {
+        // Fallback to text response if streaming isn't available
+        fullResponse = await res.text();
+        setResponse(fullResponse);
+      }
       setHasResponse(true);
     } catch (error) {
       console.error('Error:', error);

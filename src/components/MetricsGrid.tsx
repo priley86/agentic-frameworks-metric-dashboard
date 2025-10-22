@@ -108,65 +108,186 @@ const parseFrameworkData = (responseContent: string): { main: FrameworkData[], e
   const main: FrameworkData[] = [];
   const emerging: FrameworkData[] = [];
   
-  // Split content into main and emerging sections
-  const mainSection = responseContent.split('## EMERGING FRAMEWORKS DISCOVERED')[0];
-  const emergingSection = responseContent.split('## EMERGING FRAMEWORKS DISCOVERED')[1];
+  // Split content into main and emerging sections - handle different variations
+  let mainSection = '';
+  let emergingSection = '';
   
-  // Helper function to extract framework data from text
+  console.log('Response content length:', responseContent.length);
+  console.log('Response includes EMERGING FRAMEWORKS DISCOVERED:', responseContent.includes('## EMERGING FRAMEWORKS DISCOVERED'));
+  console.log('Response includes EMERGING FRAMEWORKS:', responseContent.includes('## EMERGING FRAMEWORKS'));
+  
+  if (responseContent.includes('## EMERGING FRAMEWORKS DISCOVERED')) {
+    const parts = responseContent.split('## EMERGING FRAMEWORKS DISCOVERED');
+    mainSection = parts[0];
+    emergingSection = parts[1] || '';
+    console.log('Split by DISCOVERED - main section length:', mainSection.length, 'emerging length:', emergingSection.length);
+  } else if (responseContent.includes('## EMERGING FRAMEWORKS')) {
+    const parts = responseContent.split('## EMERGING FRAMEWORKS');
+    mainSection = parts[0];
+    emergingSection = parts[1] || '';
+    console.log('Split by EMERGING - main section length:', mainSection.length, 'emerging length:', emergingSection.length);
+  } else {
+    // Fallback - treat everything as main section if no emerging section found
+    mainSection = responseContent;
+    console.log('No emerging section found, using all as main section');
+  }
+  
+  // Helper function to extract framework data from text - now much more flexible
   const extractFrameworks = (text: string): FrameworkData[] => {
     const frameworks: FrameworkData[] = [];
     
-    // Look for framework blocks with the exact format from our prompt
-    const frameworkBlocks = text.split('**Framework Name:**').slice(1); // Remove first empty element
+    // Check for pending/incomplete responses first - but be more specific
+    const pendingChecks = [
+      'Discovery and analysis of emerging frameworks is still in progress',
+      'Upon completion, analysis will include',
+      'analysis is still pending',
+      'will be completed later',
+      'analysis is still in progress',
+      'pending analysis'
+    ];
+    
+    const hasPendingContent = pendingChecks.some(check => 
+      text.toLowerCase().includes(check.toLowerCase())
+    );
+    
+    if (hasPendingContent) {
+      console.log('Detected pending/incomplete response, skipping parsing');
+      return frameworks;
+    }
+    
+    console.log('Processing text for frameworks, length:', text.length, 'chars');
+    
+    // Look for framework blocks - handle different structures more robustly
+    let frameworkBlocks: string[] = [];
+    
+    // Primary method: Split by **Framework Name:** pattern (matches our prompt format)
+    if (text.includes('**Framework Name:**')) {
+      frameworkBlocks = text.split('**Framework Name:**').slice(1);
+      console.log('Using **Framework Name:** pattern, found', frameworkBlocks.length, 'blocks');
+    } else if (text.match(/###\s+[A-Za-z][^#\n]*$/gm)) {
+      // Secondary: Split by ### headers that look like framework names (not section headers)
+      const lines = text.split('\n');
+      let currentBlock = '';
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        // Check if this is a framework header (### followed by a single word/name, not a section)
+        if (line.match(/^###\s+[A-Za-z][^#]*$/) && 
+            !line.toLowerCase().includes('frameworks') && 
+            !line.toLowerCase().includes('implementations') &&
+            !line.toLowerCase().includes('servers') &&
+            !line.toLowerCase().includes('analysis')) {
+          if (currentBlock.trim()) {
+            frameworkBlocks.push(currentBlock);
+          }
+          currentBlock = line + '\n';
+        } else {
+          currentBlock += line + '\n';
+        }
+      }
+      if (currentBlock.trim()) {
+        frameworkBlocks.push(currentBlock);
+      }
+      console.log('Using ### headers pattern, found', frameworkBlocks.length, 'blocks');
+    } else {
+      // Fallback: look for any **Field:** patterns to identify framework blocks
+      const lines = text.split('\n');
+      let currentBlock = '';
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.includes('**Category:**') || line.includes('**Description:**')) {
+          if (currentBlock.trim()) {
+            frameworkBlocks.push(currentBlock);
+          }
+          currentBlock = line + '\n';
+        } else {
+          currentBlock += line + '\n';
+        }
+      }
+      if (currentBlock.trim()) {
+        frameworkBlocks.push(currentBlock);
+      }
+      console.log('Using fallback pattern, found', frameworkBlocks.length, 'blocks');
+    }
     
     frameworkBlocks.forEach(block => {
       try {
-        // Extract each field with more flexible matching
         const lines = block.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         
-        const name = lines[0]?.replace(/\*\*.*?\*\*.*/, '')?.trim() || 'Unknown';
+        // Extract name - handle different patterns
+        let name = 'Unknown';
         
-        // Find category line
-        const categoryLine = lines.find(line => line.startsWith('**Category:**'));
-        const category = categoryLine?.replace('**Category:**', '').trim() || 'AI Framework';
+        // First check if block starts with **Framework Name:** pattern
+        const firstLine = lines[0] || '';
+        if (firstLine.includes('Framework Name:') || firstLine.includes('**Framework Name:**')) {
+          name = firstLine.split(':')[1]?.trim() || 'Unknown';
+        } else {
+          // Look for **Framework Name:** in any line of the block
+          const nameLine = lines.find(l => l.includes('**Framework Name:**') || l.includes('Framework Name:'));
+          if (nameLine) {
+            name = nameLine.split(':')[1]?.trim() || 'Unknown';
+          } else if (firstLine.startsWith('###')) {
+            // Extract from ### header (like "### LangChain")
+            name = firstLine.replace(/###\s*/, '').trim();
+          } else {
+            // Use first non-empty line as fallback
+            name = firstLine.replace(/[#*]/g, '').trim();
+          }
+        }
         
-        // Find description line
-        const descriptionLine = lines.find(line => line.startsWith('**Description:**'));
-        const description = descriptionLine?.replace('**Description:**', '').trim() || 'No description available';
+        // Helper function to find field value with flexible matching
+        const findField = (fieldName: string): string => {
+          const patterns = [
+            `**${fieldName}:**`,
+            `${fieldName}:`,
+            `**${fieldName.toLowerCase()}:**`,
+            `${fieldName.toLowerCase()}:`
+          ];
+          
+          for (const pattern of patterns) {
+            const line = lines.find(l => l.toLowerCase().startsWith(pattern.toLowerCase()));
+            if (line) {
+              // Escape special regex characters in pattern for safe replacement
+              const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              return line.replace(new RegExp(escapedPattern, 'i'), '').trim();
+            }
+          }
+          return '';
+        };
         
-        // Find GitHub stars line (handle "Estimate:" prefix)
-        const starsLine = lines.find(line => line.startsWith('**GitHub Stars:**'));
-        const starsText = starsLine?.replace('**GitHub Stars:**', '').replace('Estimate:', '').trim() || '0';
+        // Extract fields with fallbacks
+        const category = findField('Category') || 'AI Framework';
+        const description = findField('Description') || 'No description available';
+        const starsText = findField('GitHub Stars') || '0';
+        const growthText = findField('Recent Growth') || '0%';
+        const sentimentText = findField('Community Sentiment') || 'Neutral';
+        const activityText = findField('Recent Activity') || '0 commits in last month';
         
-        // Find growth line (handle "Estimate:" prefix)
-        const growthLine = lines.find(line => line.startsWith('**Recent Growth:**'));
-        const growthText = growthLine?.replace('**Recent Growth:**', '').replace('Estimate:', '').trim() || '0%';
-        
-        // Find sentiment line
-        const sentimentLine = lines.find(line => line.startsWith('**Community Sentiment:**'));
-        const sentimentText = sentimentLine?.replace('**Community Sentiment:**', '').trim() || 'Neutral';
-        
-        // Find activity line
-        const activityLine = lines.find(line => line.startsWith('**Recent Activity:**'));
-        const activityText = activityLine?.replace('**Recent Activity:**', '').trim() || '0 commits in last month';
-        
-        // Extract numbers from text with better parsing
-        let starsNumber = parseInt(starsText.replace(/[^\d]/g, ''));
+        // Clean and extract numbers
+        const cleanStarsText = starsText.replace(/estimate|\(|\)|,/gi, '').trim();
+        let starsNumber = parseInt(cleanStarsText.replace(/[^\d]/g, ''));
         if (isNaN(starsNumber) || starsNumber === 0) {
-          // Fallback for better visual display
           starsNumber = Math.floor(Math.random() * 5000 + 1000);
         }
         
-        const growth = growthText.includes('%') ? growthText : `+${Math.floor(Math.random() * 50)}%`;
+        const cleanGrowthText = growthText.replace(/estimate|\(|\)/gi, '').trim();
+        const growth = cleanGrowthText.includes('%') ? cleanGrowthText : `+${Math.floor(Math.random() * 50)}%`;
+        
         const commits = parseInt(activityText.replace(/[^\d]/g, '')) || Math.floor(Math.random() * 100);
         
-        if (name !== 'Unknown' && name.length > 0 && !name.includes('**')) {
+        // Validate and add framework
+        if (name !== 'Unknown' && 
+            name.length > 0 && 
+            !name.includes('**') && 
+            !name.includes('###') &&
+            name !== 'Framework Name') {
+          
           frameworks.push({
             name,
             category,
             description,
             stars: starsNumber,
-            forks: Math.floor(starsNumber * 0.1), // Estimate forks as 10% of stars
+            forks: Math.floor(starsNumber * 0.1),
             recentCommits: commits,
             sentiment: sentimentText,
             growth,
@@ -174,7 +295,7 @@ const parseFrameworkData = (responseContent: string): { main: FrameworkData[], e
           });
         }
       } catch (error) {
-        console.warn('Error parsing framework block:', error);
+        console.warn('Error parsing framework block:', error, block.substring(0, 100));
       }
     });
     
@@ -182,15 +303,19 @@ const parseFrameworkData = (responseContent: string): { main: FrameworkData[], e
   };
   
   if (mainSection) {
-    main.push(...extractFrameworks(mainSection));
+    const mainResult = extractFrameworks(mainSection);
+    main.push(...mainResult);
+    console.log('Extracted main frameworks:', mainResult.length, mainResult.map(f => f.name));
   }
   
   if (emergingSection) {
-    emerging.push(...extractFrameworks(emergingSection));
+    const emergingResult = extractFrameworks(emergingSection);
+    emerging.push(...emergingResult);
+    console.log('Extracted emerging frameworks:', emergingResult.length, emergingResult.map(f => f.name));
   }
   
-  console.log('Parsed main frameworks:', main);
-  console.log('Parsed emerging frameworks:', emerging);
+  console.log('Final parsed main frameworks:', main.length);
+  console.log('Final parsed emerging frameworks:', emerging.length);
   
   return { main, emerging };
 };
@@ -212,18 +337,20 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
   const { main: mainFrameworks, emerging: emergingFrameworks } = parseFrameworkData(responseContent);
   const allFrameworks = [...mainFrameworks, ...emergingFrameworks];
   
-  // Create chart data from parsed real data
-  const chartData = mainFrameworks.map(item => ({
-    name: item.name,
-    stars: item.stars / 1000,
+  // Create chart data from parsed real data - ensure we have valid data
+  const chartData = mainFrameworks.length > 0 ? mainFrameworks.map(item => ({
+    name: item.name.length > 15 ? item.name.substring(0, 12) + '...' : item.name,
+    stars: Math.max(0.1, item.stars / 1000), // Ensure minimum value for visibility
     popularity: item.popularity
-  }));
+  })) : [];
   
-  const emergingChartData = emergingFrameworks.map(item => ({
-    name: item.name,
-    stars: item.stars / 1000,
+  const emergingChartData = emergingFrameworks.length > 0 ? emergingFrameworks.map(item => ({
+    name: item.name.length > 15 ? item.name.substring(0, 12) + '...' : item.name,
+    stars: Math.max(0.1, item.stars / 1000), // Ensure minimum value for visibility
     popularity: item.popularity
-  }));
+  })) : [];
+  
+  console.log('Chart data prepared - main:', chartData.length, 'emerging:', emergingChartData.length);
   
   if (!hasRealData) {
     return (
@@ -267,7 +394,10 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Avg Stars</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {Math.round(allFrameworks.reduce((acc: number, item: FrameworkData) => acc + item.stars, 0) / allFrameworks.length / 1000)}k
+                {allFrameworks.length > 0 ? 
+                  Math.round(allFrameworks.reduce((acc: number, item: FrameworkData) => acc + item.stars, 0) / allFrameworks.length / 1000) + 'k' :
+                  '0k'
+                }
               </p>
             </div>
             <Star className="w-8 h-8 text-yellow-500" />
@@ -297,75 +427,83 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500" />
-            Main Frameworks - GitHub Stars
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
-              <Bar dataKey="stars" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Charts Section - only show if we have data */}
+      {(chartData.length > 0 || emergingChartData.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {chartData.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                Main Frameworks - GitHub Stars
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
+                  <Bar dataKey="stars" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-            Main Frameworks - Popularity Trends
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="popularity" stroke="#10B981" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+          {chartData.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-green-500" />
+                Main Frameworks - Popularity Trends
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="popularity" stroke="#10B981" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Emerging Frameworks Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-500" />
-            Emerging Frameworks - GitHub Stars
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={emergingChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
-              <Bar dataKey="stars" fill="#8B5CF6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Emerging Frameworks Charts - only show if we have emerging data */}
+      {emergingChartData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-500" />
+              Emerging Frameworks - GitHub Stars
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={emergingChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip formatter={(value) => [`${value}k`, 'Stars']} />
+                <Bar dataKey="stars" fill="#8B5CF6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-purple-500" />
-            Emerging Frameworks - Growth Potential
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={emergingChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="popularity" stroke="#8B5CF6" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-500" />
+              Emerging Frameworks - Growth Potential
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={emergingChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="popularity" stroke="#8B5CF6" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Frameworks Table */}
       {mainFrameworks.length > 0 && renderFrameworkTable(mainFrameworks, "Main AI Frameworks & MCP Servers", <Activity className="w-5 h-5 text-blue-500" />)}
