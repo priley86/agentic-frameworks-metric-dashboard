@@ -204,7 +204,8 @@ export const KNOWN_REPOS: Record<string, { owner: string; repo: string }> = {
   
   // Cloudflare alternatives
   'cloudflare agents': { owner: 'cloudflare', repo: 'agents' },
-  'Cloudflare Agents': { owner: 'cloudflare', repo: 'workers-ai' },
+  'Cloudflare Agents': { owner: 'cloudflare', repo: 'agents' },
+  'Cloudflare': { owner: 'cloudflare', repo: 'agents' },
 };
 
 // Function to find GitHub repo info for a framework name

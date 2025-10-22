@@ -548,7 +548,7 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
             const annualGrowthRate = (Math.pow(1 + monthlyGrowthRate, 12) - 1) * 100;
             
             // Cap at reasonable values and format
-            const cappedGrowth = Math.min(Math.max(annualGrowthRate, 0), 1000);
+            const cappedGrowth = Math.max(annualGrowthRate, 0);
             estimatedGrowth = `+${Math.round(cappedGrowth)}%/yr`;
           }
         }
@@ -586,6 +586,31 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
   
   console.log('Chart data prepared - main:', chartData.length, 'emerging:', emergingChartData.length);
   console.log('Using real GitHub data:', hasGitHubData);
+  
+  // Calculate average growth from all frameworks
+  const calculateAverageGrowth = (): string => {
+    const validGrowthRates: number[] = [];
+    
+    [...enhancedMainFrameworks, ...enhancedEmergingFrameworks].forEach(framework => {
+      // Extract numeric growth rate from strings like "+150%/yr", "+25%", "N/A"
+      const growthMatch = framework.growth.match(/([+-]?\d+(?:\.\d+)?)/);
+      if (growthMatch) {
+        const numericGrowth = parseFloat(growthMatch[1]);
+        if (!isNaN(numericGrowth) && numericGrowth > 0) {
+          validGrowthRates.push(numericGrowth);
+        }
+      }
+    });
+    
+    if (validGrowthRates.length === 0) {
+      return '+25%'; // Fallback
+    }
+    
+    const average = validGrowthRates.reduce((sum, rate) => sum + rate, 0) / validGrowthRates.length;
+    return `+${Math.round(average)}%`;
+  };
+  
+  const averageGrowth = calculateAverageGrowth();
   
   if (!hasRealData) {
     return (
@@ -643,7 +668,7 @@ export default function MetricsGrid({ responseContent }: MetricsGridProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Avg Growth</p>
-              <p className="text-2xl font-bold text-green-600">+25%</p>
+              <p className="text-2xl font-bold text-green-600">{averageGrowth}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500" />
           </div>
